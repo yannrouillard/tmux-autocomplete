@@ -159,7 +159,7 @@ func start(args map[string]interface{}, tmux *Tmux) error {
 		return err
 	}
 
-	return tmux.NewWindow(os.Args[0], pane, cursorX, cursorY, "-W", "2>/tmp/x.log")
+	return tmux.NewWindow(os.Args[0], pane, cursorX, cursorY, "-W")
 }
 
 func renderPane(pane *Pane, colors Colorscheme) {
