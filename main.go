@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/docopt/docopt-go"
@@ -22,7 +23,8 @@ Usage:
 Options:
   -h --help    Show this help.
   -r <regexp>  Identifier regexp to match.
-				[default: [!-~]+]
+                [default: [!-~]+]
+  -l <log>     Specify log file [default: /dev/stderr]
 `
 
 func main() {
@@ -37,12 +39,23 @@ func main() {
 		panic(err)
 	}
 
+	logfile, err := os.OpenFile(
+		args["-l"].(string),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0600,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	log.SetOutput(logfile)
+
 	tmux := &Tmux{}
 
 	if !args["-W"].(bool) {
 		err := start(args, tmux)
 		if err != nil {
-			panic(err)
+			log.Fatalln(err)
 		}
 
 		return
@@ -55,23 +68,23 @@ func main() {
 
 	_, err = fmt.Sscan(args["<cursor-x>"].(string), &cursorX)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	_, err = fmt.Sscan(args["<cursor-y>"].(string), &cursorY)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	pane, err := CapturePane(tmux, args["<pane>"].(string), "-eJ")
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	x, y := pane.GetBufferXY(cursorX, cursorY)
 	identifier, err := getIdentifierToComplete(args, pane, x, y)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	if identifier == nil {
@@ -82,7 +95,7 @@ func main() {
 
 	candidates, err := getCompletionCandidates(args, pane, identifier)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	selectDefaultCandidate(candidates, identifier.X, identifier.Y)
@@ -95,7 +108,7 @@ func main() {
 
 	err = termbox.Init()
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
 
 	// TODO: make customizable by CLI
@@ -136,7 +149,7 @@ func main() {
 			}
 
 		case termbox.EventError:
-			panic(ev.Err)
+			log.Fatalln(ev.Err)
 		}
 	}
 }
@@ -159,7 +172,15 @@ func start(args map[string]interface{}, tmux *Tmux) error {
 		return err
 	}
 
-	return tmux.NewWindow(os.Args[0], pane, cursorX, cursorY, "-W")
+	return tmux.NewWindow(
+		os.Args[0],
+		"-l",
+		args["-l"].(string),
+		pane,
+		cursorX,
+		cursorY,
+		"-W",
+	)
 }
 
 func renderPane(pane *Pane, colors Colorscheme) {
