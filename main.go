@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/docopt/docopt-go"
 	"github.com/mgutz/ansi"
@@ -53,7 +54,13 @@ func main() {
 	tmux := &Tmux{}
 
 	if !args["-W"].(bool) {
-		err := start(args, tmux)
+
+		if isStarted(tmux) {
+			tmux.exec("send-key", "Up")
+			return
+		}
+
+		err = start(args, tmux)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -152,6 +159,17 @@ func main() {
 			log.Fatalln(ev.Err)
 		}
 	}
+}
+
+func isStarted(tmux *Tmux) bool {
+
+	currentWindowName, err := tmux.exec("list-window", "-F", "#{?window_active,#{window_name},}")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	currentWindowName = strings.TrimSpace(currentWindowName)
+
+	return currentWindowName == "tmux-autocomplete" 
 }
 
 func start(args map[string]interface{}, tmux *Tmux) error {
